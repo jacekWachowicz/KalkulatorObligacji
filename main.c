@@ -6,7 +6,7 @@
 
 typedef struct typObligacji{ 
     int czas,okresWyplaty;
-    float prc,kara;
+    double prc,kara;
     char* nazwa;
 }typObligacji;
 
@@ -16,7 +16,7 @@ typedef struct Parameters{
 }Parameters;
 
 typedef struct Results{
-    float brutto,netto,kara,wszystkieOdsetki;
+    double brutto,netto,kara,wszystkieOdsetki;
 }Results;
 
 
@@ -24,7 +24,7 @@ int min(int a, int b){
     if (a<b) return a;
     return b;
 }
-float minf(float a, float b){
+double minf(double a, double b){
     if (a<b) return a;
     return b;
 }
@@ -53,9 +53,9 @@ int parseTime(char* buff){
 }
 
 Results obliczZysk(int msc, typObligacji obligacja, int verbose){
-    float mnoznikMiesieczny= (obligacja.prc/12)/100 ;
-    float cosieDodaje= BAZA * mnoznikMiesieczny;
-    float pieniadze=BAZA; 
+    double mnoznikMiesieczny= (obligacja.prc/12)/100 ;
+    double cosieDodaje= BAZA * mnoznikMiesieczny;
+    double pieniadze=BAZA; 
     int gainFlag=0;
     Results result;
     result.brutto=0.0; result.netto=0.0; result.kara=0.0; result.wszystkieOdsetki=0.0;
@@ -107,7 +107,7 @@ Results obliczZysk(int msc, typObligacji obligacja, int verbose){
         result.wszystkieOdsetki= result.brutto+ pieniadze-BAZA;
         result.brutto= result.wszystkieOdsetki-result.kara;
 
-        float reszta;
+        double reszta;
         if(pieniadze-BAZA-result.kara <= 0) reszta=(pieniadze-BAZA-result.kara);
         else reszta=(pieniadze-BAZA-result.kara)*BELKA;
         result.netto= result.netto + reszta;
@@ -130,7 +130,7 @@ Results obliczZysk(int msc, typObligacji obligacja, int verbose){
     return result;
 }
 
-void analiza(Parameters parameters){
+double analiza(Parameters parameters){
     printf("\n===Obligacje %s===\n\nOprocentowanie: %.2f%%\nCzas oszczędzania: %d miesięcy\nIlość obligacji: %d\n"
             ,parameters.typ.nazwa, parameters.typ.prc, parameters.msc, parameters.ileObligacji);
 
@@ -145,12 +145,14 @@ void analiza(Parameters parameters){
     printf("Wszystkie wytworzone odsetki: %.2fzł\nKara za wcześniejszy wykup: %.2fzł\nZysk brutto: %.2fzł\nZapłacony podatek: %.2fzł\nZysk netto: %.2fzł\n",
             result.wszystkieOdsetki*parameters.ileObligacji, result.kara*parameters.ileObligacji, result.brutto*parameters.ileObligacji,parameters.ileObligacji*(result.brutto-result.netto), result.netto*parameters.ileObligacji);
     }
+    return result.netto*parameters.ileObligacji;
 }
 
 int main(){
     char choice='n';
     char buff[10];
-    int typ=1;
+    int typ=1, kapital1=0;
+    double zysk;
 
     typObligacji TOS;
     TOS.kara=1.0; TOS.czas=3*12; TOS.prc = 4.4; TOS.okresWyplaty=0; TOS.nazwa="TOS\0";
@@ -188,10 +190,13 @@ int main(){
     scanf("%s",buff);
     parameters.msc=parseTime(buff);
 
-    printf("Ile obligacji chcesz costam?\n");
-    scanf("%d",&parameters.ileObligacji);
+    printf("Ile chcesz zainwestować? (zł)\n");
+    scanf("%d",&kapital1);
+    parameters.ileObligacji=kapital1/100;
 
-    analiza(parameters);
+    zysk=analiza(parameters);
+
+    printf("\nSuma: %.2fzł\n",zysk+(double)kapital1);
 
     return 0;
 }
