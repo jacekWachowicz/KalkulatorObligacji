@@ -30,7 +30,7 @@ Results obliczZysk(int msc, typObligacji obligacja, int verbose){
             gainFlag=1;
         }
 
-        if(obligacja.okresWyplaty>0 && i>0 && (i+1)%obligacja.okresWyplaty==0){
+        if(obligacja.okresWyplaty>0 &&  (i+1)%obligacja.okresWyplaty==0){
             result.brutto+=pieniadze-BAZA;
             result.netto+=(pieniadze-BAZA)*BELKA;
             if(verbose)printf("\nWypłata odsetek:\n    %.2fzł brutto\n    %.2fzł netto (delta %.2fzł)\nRAZEM: %.2fzł\n\n"

@@ -3,6 +3,7 @@
 #include "data_types.h"
 #include "helpers.h"
 #include "calc.h"
+#include <stdlib.h>
 
 
 double analiza(Parameters parameters){
@@ -28,19 +29,17 @@ int main(){
     char buff[10];
     int typ=1, kapital1=0;
     double zysk;
+    const typObligacji types[] = {
+        { .nazwa = "OTS", .kara = 99.0, .czas = 3,     .prc = 2.0,  .okresWyplaty = 0 },
+        { .nazwa = "ROR", .kara = 0.5,  .czas = 12,    .prc = 4.0,  .okresWyplaty = 1 },
+        { .nazwa = "DOR", .kara = 0.7,  .czas = 24,    .prc = 4.15, .okresWyplaty = 1 },
+        { .nazwa = "TOS", .kara = 1.0,  .czas = 36,    .prc = 4.4,  .okresWyplaty = 0 },
+        { .nazwa = "COI", .kara = 2.0,  .czas = 48,    .prc = 4.75, .okresWyplaty = 12 },
+        { .nazwa = "EDO", .kara = 2.0,  .czas = 120,   .prc = 5.35, .okresWyplaty = 0 }
+    };
 
-    typObligacji TOS;
-    TOS.kara=1.0; TOS.czas=3*12; TOS.prc = 4.4; TOS.okresWyplaty=0; TOS.nazwa="TOS\0";
-    typObligacji EDO;
-    EDO.kara=2.0; EDO.czas=10*12; EDO.prc = 5.35; EDO.okresWyplaty=0; EDO.nazwa="EDO\0";
-    typObligacji COI;
-    COI.kara=2.0; COI.czas=4*12; COI.prc = 4.75; COI.okresWyplaty=12; COI.nazwa="COI\0";
-    typObligacji ROR;
-    ROR.kara=0.5; ROR.czas=12; ROR.prc = 4.0; ROR.okresWyplaty=1; ROR.nazwa="ROR\0";
-    typObligacji DOR;
-    DOR.kara=0.7; DOR.czas=2*12; DOR.prc = 4.15; DOR.okresWyplaty=1; DOR.nazwa="DOR\0";
-    typObligacji OTS;
-    OTS.kara=99.0; OTS.czas=3 ; OTS.prc = 2.0; OTS.okresWyplaty=0; OTS.nazwa="OTS\0";
+    const int n=sizeof(types)/sizeof(types[0]);
+
     Parameters parameters;
 
     printf("Wyświetlać szczegóły?(y/n): ");
@@ -49,33 +48,21 @@ int main(){
     else parameters.verbose=0; 
 
     printf("Jaki typ obligacji?\n");
-    printf("1. 3 miesięczne OTS (%.2f%%)\n2. 1 roczne ROR (%.2f%%)\n3. 2 letnie DOR (%.2f%%)\n4. 3 letnie TOS (%.2f%%)\n5. 4 letnie COI (%.2f%%)\n6. 10 letnie EDO (%.2f%%)\n",
-            OTS.prc,ROR.prc,DOR.prc,TOS.prc,COI.prc,EDO.prc);
+    for(int i=0; i<n; i++)
+    {
+        printf("\n%d. %s - ",i+1,types[i].nazwa);
+        if(types[i].czas<12) printf("%d miesięce\n",types[i].czas);
+        else printf("%d lata\n",types[i].czas/12);
+        printf("    Oprocentowanie: %.2f\n",types[i].prc);
+
+    }
     scanf("%d",&typ);
-    switch (typ){
-        case 1:
-            parameters.typ=OTS;
-            break;
-        case 2:
-            parameters.typ=ROR;
-            break;
-        case 3:
-            parameters.typ=DOR;
-            break;
-        case 4:
-            parameters.typ=TOS;
-            break;
-        case 5:
-            parameters.typ=COI;
-            break;
-        case 6:
-            parameters.typ=EDO;
-            break;
-        default:
-            printf("Niepoprawny typ obligacji\n");
-            return 1;
+    if(typ<1 || typ >n){
+        printf("Niepoprawny typ\n");
+        return 1;
     }
 
+    parameters.typ=types[typ-1];
     printf("Po jakim czasie chcesz wyjąć pieniądze?\n(np. 12m - 12 miesięcy, 10l - 10 lat)\n");
     scanf("%s",buff);
     parameters.msc=parseTime(buff);
@@ -87,7 +74,6 @@ int main(){
     zysk=analiza(parameters);
 
     printf("\nSuma: %.2fzł\n",zysk+(double)kapital1);
-
     return 0;
 }
 
