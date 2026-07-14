@@ -7,6 +7,10 @@ Wymaga jedynie kompilatora C i make.
 ```bash
 make
 ```
+Uruchomienie:
+```bash
+./kalkulator
+```
 
 ## Działanie
 
