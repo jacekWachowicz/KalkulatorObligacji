@@ -6,10 +6,12 @@ int min(int a, int b){
     if (a<b) return a;
     return b;
 }
+
 int max(int a, int b){
     if (a>b) return a;
     return b;
 }
+
 double mind(double a, double b){
     if (a<b) return a;
     return b;
@@ -19,6 +21,7 @@ double maxd(double a, double b){
     if (a>b) return a;
     return b;
 }
+
 int isNumber(char c){
     if(c>='0' && c<='9') return 1;
     return 0;
@@ -41,4 +44,5 @@ int parseTime(char* buff){
     }
     return number;
 }
+
 #endif

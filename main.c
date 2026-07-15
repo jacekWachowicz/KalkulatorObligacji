@@ -26,7 +26,7 @@ double analiza(Parameters parameters){
 
 int main(){
     char choice='n';
-    char buff[10];
+    char buff[11];
     int typ=1, kapital1=0;
     double zysk;
     const typObligacji types[] = {
@@ -64,7 +64,7 @@ int main(){
 
     parameters.typ=types[typ-1];
     printf("Po jakim czasie chcesz wyjąć pieniądze?\n(np. 12m - 12 miesięcy, 10l - 10 lat)\n");
-    scanf("%s",buff);
+    scanf("%10s",buff);
     parameters.msc=parseTime(buff);
 
     printf("Ile chcesz zainwestować? (zł)\n");
