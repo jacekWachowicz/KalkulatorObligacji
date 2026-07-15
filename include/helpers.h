@@ -10,6 +10,6 @@ double maxd(double a, double b);
 
 int isNumber(char c);
 
-int parseTime(char* buff);
+int parseTime(char *buff);
 
 #endif
