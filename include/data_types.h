@@ -7,13 +7,13 @@
 typedef struct typObligacji
 {
     int czas, okresWyplaty;
-    double prc, kara;
+    double prc, kara, kosztZamiany;
     char *nazwa;
 } typObligacji;
 
 typedef struct Parameters
 {
-    int msc, ileObligacji, verbose;
+    int msc, ileObligacji, verbose, buyingFreq, buyingAmt;
     typObligacji typ;
 } Parameters;
 
@@ -25,12 +25,14 @@ typedef struct Results
 typedef struct Pozycja
 {
     int amount, startMonth;
-    double zyskBrutto;
+    double wartoscBrutto,miesiecznyPrzychodBrutto;
+    typObligacji typ;
 } Pozycja;
 
 typedef struct Portfel
 {
     Pozycja *pozycje;
-    double konto;
+    int liczbaPozycji;
+    double konto,ileZainwestowane;
 } Portfel;
 #endif
