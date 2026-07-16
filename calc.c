@@ -3,10 +3,9 @@
 #include "calc.h"
 #include "data_types.h"
 #include "helpers.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-// version 2
 
 void kupObligacje(Portfel* portfel, int ileObligacji, typObligacji typ, int startMonth)
 {
@@ -37,7 +36,7 @@ int isTimeToBuy(const int currentMonth, const Parameters parameters)
     // co 3:
     // 1,2,3,4-kup,5,6,7-kup
 
-    if (((currentMonth - 1) % parameters.buyingFreq == 0) && (currentMonth != 1) && parameters.buyingFreq > 0)
+    if (parameters.buyingFreq > 0 && ((currentMonth - 1) % parameters.buyingFreq == 0) && (currentMonth != 1))
         return 1;
     else
         return 0;
@@ -69,6 +68,20 @@ int isTimeToPay(const Pozycja* pozycja, const int currentMonth)
     if (payInterval > 0 && (elapsedMonths + 1) % payInterval == 0)
         return 1;
     return 0;
+}
+
+double obliczZyskNetto(double zyskBruttoTotal, int iloscObligacji, float karaTotal)
+{
+    double zyskBruttoSztuka = zyskBruttoTotal / iloscObligacji;
+    double karaSztuka = karaTotal / iloscObligacji;
+    double podstawaSztuka = zyskBruttoSztuka - karaSztuka;
+    double podatekSztuka = 0.0;
+
+    if (podstawaSztuka > 0)
+        podatekSztuka = round(podstawaSztuka * 0.19 * 100.0) / 100.0;
+
+    double zyskNettoSztuka = podstawaSztuka - podatekSztuka;
+    return zyskNettoSztuka * iloscObligacji;
 }
 
 int isEndOfBondLifecycle(Pozycja* pozycja, int currentMonth)
@@ -142,7 +155,7 @@ void aktualizujOdsetki(Portfel* portfel, const int numerPozycji, const int curre
     if (isTimeToPay(aktualizowanaPozycja, currentMonth))
     { // dla obligacji ROR,COI itp, które wypłacają odsetki
         double zyskBrutto = aktualizowanaPozycja->wartoscBrutto - (aktualizowanaPozycja->amount * BAZA);
-        double zyskNetto = zyskBrutto * BELKA;
+        double zyskNetto = obliczZyskNetto(zyskBrutto, aktualizowanaPozycja->amount, 0.0);
         aktualizowanaPozycja->wartoscBrutto -= zyskBrutto;
         portfel->konto += zyskNetto;
         if (parameteres.verbose)
@@ -153,8 +166,11 @@ void aktualizujOdsetki(Portfel* portfel, const int numerPozycji, const int curre
 void wykupStandardowo(Portfel* portfel, const int numerPozycji, const Parameters parameters)
 {
     Pozycja* pozycja = &(portfel->pozycje[numerPozycji]);
-    double zyskBrutto = pozycja->wartoscBrutto - (pozycja->amount * BAZA);
-    double zyskNetto = zyskBrutto * BELKA;
+
+    double zyskBruttoTotal = pozycja->wartoscBrutto - (pozycja->amount * BAZA);
+
+    double zyskNetto = obliczZyskNetto(zyskBruttoTotal, pozycja->amount, 0.0);
+
     portfel->konto += zyskNetto + pozycja->amount * BAZA;
 }
 
@@ -163,29 +179,23 @@ void wykupPrzedterminowo(Portfel* portfel, const int numerPozycji, const Paramet
     Pozycja* pozycja = &(portfel->pozycje[numerPozycji]);
     int currentMonth = parameters.msc + 1;
     int elapsedMonths = currentMonth - pozycja->startMonth;
+
     double zyskBrutto = pozycja->wartoscBrutto - (pozycja->amount * BAZA);
     double zyskNetto = 0.0;
     double kara = 0.0;
     if (parameters.verbose)
-        printf("\n\nPrzedterminowy wykup obligacji %d: \nzysk brutto przed wykupem: %.2fzł\n",numerPozycji, zyskBrutto);
+        printf("\n\nPrzedterminowy wykup obligacji %d: \nzysk brutto przed wykupem: %.2fzł\n", numerPozycji,
+               zyskBrutto);
     if (pozycja->typ.okresWyplaty != 0 && elapsedMonths >= pozycja->typ.okresWyplaty) // obligacje wypłacające odsetki
     {
-        kara = pozycja->typ.kara * (double)pozycja->amount;
-        if (zyskBrutto - kara <= 0)
-        {
-            zyskNetto = zyskBrutto - kara;
-        }
-        else
-        {
-            zyskNetto = (zyskBrutto - kara) * BELKA;
-        }
+        kara = pozycja->typ.kara * pozycja->amount;
     }
     else // obligacje kapitalizujące odsetki
     {
         kara = mind(zyskBrutto, pozycja->typ.kara * (double)pozycja->amount);
-        zyskBrutto -= kara;
-        zyskNetto = zyskBrutto * BELKA;
     }
+    zyskNetto = obliczZyskNetto(zyskBrutto, pozycja->amount, kara);
+
     if (parameters.verbose)
         printf("Kara za wykup: %.2fzł\ncałkowity zysk netto: %.2fzł\n\n", kara, zyskNetto);
     portfel->konto += zyskNetto + pozycja->amount * BAZA;
@@ -230,99 +240,6 @@ void calculate(Portfel* portfel, const Parameters parameters)
     {
         wykupPozycje(portfel, i, parameters);
     }
-}
-
-// version 1
-Results obliczZysk(int msc, typObligacji obligacja, int verbose)
-{
-    double mnoznikMiesieczny = (obligacja.prc / 12) / 100;
-    double cosieDodaje = BAZA * mnoznikMiesieczny;
-    double pieniadze = BAZA;
-    int gainFlag = 0;
-    Results result;
-    result.brutto = 0.0;
-    result.netto = 0.0;
-    result.kara = 0.0;
-    result.wszystkieOdsetki = 0.0;
-
-    for (int i = 0; i < min(msc, obligacja.czas); i++)
-    {
-
-        if (i % 12 == 0 && !obligacja.okresWyplaty && i != 0)
-            cosieDodaje = pieniadze * mnoznikMiesieczny;
-
-        if (i % 12 == 0 && verbose)
-        {
-            printf("\nBaza oprocentowania: %.2fzł\nZysk miesieczny: %.2fzł\n\n", pieniadze, cosieDodaje);
-        }
-
-        pieniadze = pieniadze + cosieDodaje; // dodanie comiesiecznego przychodu z odsetek
-
-        if (verbose)
-            printf("Miesiąc %d: %.2fzł\n", i + 1, pieniadze);
-
-        if (pieniadze - BAZA >= obligacja.kara && !gainFlag && verbose)
-        {
-            printf("\nZysk jest teraz większy od kary %.2fzł\n\n", obligacja.kara);
-            gainFlag = 1;
-        }
-
-        if (obligacja.okresWyplaty > 0 && (i + 1) % obligacja.okresWyplaty == 0)
-        {
-            result.brutto += pieniadze - BAZA;
-            result.netto += (pieniadze - BAZA) * BELKA;
-            if (verbose)
-                printf("\nWypłata odsetek:\n    %.2fzł brutto\n    %.2fzł netto (delta %.2fzł)\nRAZEM: %.2fzł\n\n",
-                       pieniadze - BAZA, (pieniadze - BAZA) * BELKA, (pieniadze - BAZA) * (1 - BELKA), result.netto);
-            pieniadze = BAZA;
-        }
-    }
-
-    //-----------obligacje, które wypłacają odsetki na konto
-    if (obligacja.okresWyplaty > 0)
-    {
-        if (msc >= obligacja.czas)
-        {
-            result.wszystkieOdsetki = result.brutto;
-            return result;
-        }
-        if (msc < obligacja.okresWyplaty)
-        {
-            result.kara = mind(pieniadze - BAZA, obligacja.kara);
-            result.wszystkieOdsetki = pieniadze - BAZA;
-            result.brutto = result.wszystkieOdsetki - result.kara;
-            result.netto = result.brutto * BELKA;
-            printf("\nPieniadze wyciągnięte przed okresem %d lat (%d miesięcy)", obligacja.czas / 12, obligacja.czas);
-            return result;
-        }
-        result.kara = obligacja.kara;
-        result.wszystkieOdsetki = result.brutto + pieniadze - BAZA;
-        result.brutto = result.wszystkieOdsetki - result.kara;
-
-        double reszta;
-        if (pieniadze - BAZA - result.kara <= 0)
-            reszta = (pieniadze - BAZA - result.kara);
-        else
-            reszta = (pieniadze - BAZA - result.kara) * BELKA;
-        result.netto = result.netto + reszta;
-        printf("\nPieniadze wyciągnięte przed okresem %d lat (%d miesięcy)", obligacja.czas / 12, obligacja.czas);
-        return result;
-    }
-
-    //----------obligacje z kapitalizacją odsetek
-    result.wszystkieOdsetki = pieniadze - BAZA;
-    // teraz mamy same odsetki w pieniadzach
-    if (msc >= obligacja.czas)
-    {
-        result.brutto = result.wszystkieOdsetki;
-        result.netto = result.brutto * BELKA;
-        return result;
-    }
-    result.kara = mind(result.wszystkieOdsetki, obligacja.kara);
-    result.brutto = result.wszystkieOdsetki - result.kara;
-    result.netto = result.brutto * BELKA;
-    printf("\nPieniadze wyciągnięte przed okresem %d lat (%d miesięcy)", obligacja.czas / 12, obligacja.czas);
-    return result;
 }
 
 #endif
