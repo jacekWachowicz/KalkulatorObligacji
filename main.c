@@ -61,12 +61,12 @@ void getParameters(Parameters* parameters, Portfel* portfel, const typObligacji*
 int main(){
     Portfel portfel={.konto=0.0,.liczbaPozycji=0};
 
-    const typObligacji types[] = {{.nazwa = "OTS", .kara = 99.0, .czas = 3,   .prc = 2.0,  .okresWyplaty = 0, .kosztZamiany=100.0},
-                                  {.nazwa = "ROR", .kara = 0.5,  .czas = 12,  .prc = 4.0,  .okresWyplaty = 1, .kosztZamiany=99.9},
-                                  {.nazwa = "DOR", .kara = 0.7,  .czas = 24,  .prc = 4.15, .okresWyplaty = 1, .kosztZamiany=99.9},
-                                  {.nazwa = "TOS", .kara = 1.0,  .czas = 36,  .prc = 4.4,  .okresWyplaty = 0, .kosztZamiany=99.9},
-                                  {.nazwa = "COI", .kara = 2.0,  .czas = 48,  .prc = 4.75, .okresWyplaty = 12,.kosztZamiany=99.9},
-                                  {.nazwa = "EDO", .kara = 2.0,  .czas = 120, .prc = 5.35, .okresWyplaty = 0, .kosztZamiany=99.9}};
+    const typObligacji types[] = {{.nazwa = "OTS", .kara = 99.0, .czas = 3,   .prc = 2.0,  .okresWyplaty = 0, .kosztZamiany=100.0, .obliczKare = obliczKareKapitalizujaco},
+                                  {.nazwa = "ROR", .kara = 0.5,  .czas = 12,  .prc = 4.0,  .okresWyplaty = 1, .kosztZamiany=99.9,  .obliczKare = obliczKareWyplacajaco},
+                                  {.nazwa = "DOR", .kara = 0.7,  .czas = 24,  .prc = 4.15, .okresWyplaty = 1, .kosztZamiany=99.9,  .obliczKare = obliczKareWyplacajaco},
+                                  {.nazwa = "TOS", .kara = 1.0,  .czas = 36,  .prc = 4.4,  .okresWyplaty = 0, .kosztZamiany=99.9,  .obliczKare = obliczKareKapitalizujaco},
+                                  {.nazwa = "COI", .kara = 2.0,  .czas = 48,  .prc = 4.75, .okresWyplaty = 12,.kosztZamiany=99.9,  .obliczKare = obliczKareWyplacajaco},
+                                  {.nazwa = "EDO", .kara = 2.0,  .czas = 120, .prc = 5.35, .okresWyplaty = 0, .kosztZamiany=99.9,  .obliczKare = obliczKareKapitalizujaco}};
 
     const int n = sizeof(types) / sizeof(types[0]);
 

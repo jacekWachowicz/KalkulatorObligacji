@@ -9,6 +9,7 @@ typedef struct typObligacji
     int czas, okresWyplaty;
     double prc, kara, kosztZamiany;
     char *nazwa;
+    double (*obliczKare)(struct typObligacji* this, double zyskBrutto,int iloscObligacji, int elapsedMonths);
 } typObligacji;
 
 typedef struct Parameters

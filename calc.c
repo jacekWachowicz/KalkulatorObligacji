@@ -7,6 +7,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+double obliczKareWyplacajaco(typObligacji* this, double zyskBrutto, int iloscObligacji, int elapsedMonths)
+{
+
+    if (elapsedMonths >= this->okresWyplaty) // obligacje wypłacające odsetki
+        return this->kara * iloscObligacji;
+    return mind(zyskBrutto, this->kara * (double)iloscObligacji);
+}
+
+double obliczKareKapitalizujaco(typObligacji* this, double zyskBrutto, int iloscObligacji, int elapsedMonths)
+{
+    return mind(zyskBrutto, this->kara * (double)iloscObligacji);
+}
+
 void kupObligacje(Portfel* portfel, int ileObligacji, typObligacji typ, int startMonth)
 {
     if (portfel->konto < ileObligacji * BAZA)
@@ -25,7 +38,7 @@ void kupObligacje(Portfel* portfel, int ileObligacji, typObligacji typ, int star
     portfel->konto -= ileObligacji * BAZA;
 }
 
-int isTimeToBuy(const int currentMonth, const Parameters parameters)
+static int isTimeToBuy(const int currentMonth, const Parameters parameters)
 {
     // dokupowanie co 1 miesiąc:
     // 1, 2-kup, 3-kup, 4-kup
@@ -42,7 +55,7 @@ int isTimeToBuy(const int currentMonth, const Parameters parameters)
         return 0;
 }
 
-int isTimeToCapitalise(const Pozycja* pozycja, const int currentMonth)
+static int isTimeToCapitalise(const Pozycja* pozycja, const int currentMonth)
 {
     // przyklad: start month:1 kapitalizacja co rok
     // 13msc na początku musi być kapitalizacja
@@ -52,7 +65,7 @@ int isTimeToCapitalise(const Pozycja* pozycja, const int currentMonth)
     return 0;
 }
 
-int isTimeToPay(const Pozycja* pozycja, const int currentMonth)
+static int isTimeToPay(const Pozycja* pozycja, const int currentMonth)
 {
     // przyklady:
     // startMonth 1 payInterv. 1
@@ -84,6 +97,39 @@ double obliczZyskNetto(double zyskBruttoTotal, int iloscObligacji, float karaTot
     return zyskNettoSztuka * iloscObligacji;
 }
 
+static void wykupStandardowo(Portfel* portfel, const int numerPozycji, const Parameters parameters)
+{
+    Pozycja* pozycja = &(portfel->pozycje[numerPozycji]);
+
+    double zyskBruttoTotal = pozycja->wartoscBrutto - (pozycja->amount * BAZA);
+
+    double zyskNetto = obliczZyskNetto(zyskBruttoTotal, pozycja->amount, 0.0);
+
+    portfel->konto += zyskNetto + pozycja->amount * BAZA;
+}
+
+static void wykupPrzedterminowo(Portfel* portfel, const int numerPozycji, const Parameters parameters)
+{
+    Pozycja* pozycja = &(portfel->pozycje[numerPozycji]);
+    int currentMonth = parameters.msc + 1;
+    int elapsedMonths = currentMonth - pozycja->startMonth;
+
+    double zyskBrutto = pozycja->wartoscBrutto - (pozycja->amount * BAZA);
+    double zyskNetto = 0.0;
+    double kara = 0.0;
+
+    if (parameters.verbose)
+        printf("\n\nPrzedterminowy wykup obligacji %d: \nzysk brutto przed wykupem: %.2fzł\n", numerPozycji,
+               zyskBrutto);
+
+    kara = pozycja->typ.obliczKare(&(pozycja->typ), zyskBrutto, pozycja->amount, elapsedMonths);
+
+    zyskNetto = obliczZyskNetto(zyskBrutto, pozycja->amount, kara);
+
+    if (parameters.verbose)
+        printf("Kara za wykup: %.2fzł\ncałkowity zysk netto: %.2fzł\n\n", kara, zyskNetto);
+    portfel->konto += zyskNetto + pozycja->amount * BAZA;
+}
 int isEndOfBondLifecycle(Pozycja* pozycja, int currentMonth)
 {
     // przyklady
@@ -128,7 +174,8 @@ void reinvest(Portfel* portfel, int numerPozycji, int currentMonth, const Parame
                ileMoznaDokupic, pozycja->wartoscBrutto);
 }
 
-void aktualizujOdsetki(Portfel* portfel, const int numerPozycji, const int currentMonth, const Parameters parameteres)
+static void aktualizujOdsetki(Portfel* portfel, const int numerPozycji, const int currentMonth,
+                              const Parameters parameteres)
 {
 
     Pozycja* aktualizowanaPozycja = &(portfel->pozycje[numerPozycji]);
@@ -163,43 +210,6 @@ void aktualizujOdsetki(Portfel* portfel, const int numerPozycji, const int curre
     }
 }
 
-void wykupStandardowo(Portfel* portfel, const int numerPozycji, const Parameters parameters)
-{
-    Pozycja* pozycja = &(portfel->pozycje[numerPozycji]);
-
-    double zyskBruttoTotal = pozycja->wartoscBrutto - (pozycja->amount * BAZA);
-
-    double zyskNetto = obliczZyskNetto(zyskBruttoTotal, pozycja->amount, 0.0);
-
-    portfel->konto += zyskNetto + pozycja->amount * BAZA;
-}
-
-void wykupPrzedterminowo(Portfel* portfel, const int numerPozycji, const Parameters parameters)
-{
-    Pozycja* pozycja = &(portfel->pozycje[numerPozycji]);
-    int currentMonth = parameters.msc + 1;
-    int elapsedMonths = currentMonth - pozycja->startMonth;
-
-    double zyskBrutto = pozycja->wartoscBrutto - (pozycja->amount * BAZA);
-    double zyskNetto = 0.0;
-    double kara = 0.0;
-    if (parameters.verbose)
-        printf("\n\nPrzedterminowy wykup obligacji %d: \nzysk brutto przed wykupem: %.2fzł\n", numerPozycji,
-               zyskBrutto);
-    if (pozycja->typ.okresWyplaty != 0 && elapsedMonths >= pozycja->typ.okresWyplaty) // obligacje wypłacające odsetki
-    {
-        kara = pozycja->typ.kara * pozycja->amount;
-    }
-    else // obligacje kapitalizujące odsetki
-    {
-        kara = mind(zyskBrutto, pozycja->typ.kara * (double)pozycja->amount);
-    }
-    zyskNetto = obliczZyskNetto(zyskBrutto, pozycja->amount, kara);
-
-    if (parameters.verbose)
-        printf("Kara za wykup: %.2fzł\ncałkowity zysk netto: %.2fzł\n\n", kara, zyskNetto);
-    portfel->konto += zyskNetto + pozycja->amount * BAZA;
-}
 
 void wykupPozycje(Portfel* portfel, const int numerPozycji, const Parameters parameters)
 {
@@ -234,7 +244,6 @@ void calculate(Portfel* portfel, const Parameters parameters)
         {
             aktualizujOdsetki(portfel, i, currentMonth, parameters);
         }
-        // if(parameters.verbose) printf("\n");
     }
     for (int i = 0; i < portfel->liczbaPozycji; i++)
     {
