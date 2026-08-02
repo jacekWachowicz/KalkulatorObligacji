@@ -91,7 +91,7 @@ int main(){
 
     calculate(&portfel, parameters);
 
-    printf("\nStatystyki:\nIle zainwestowano: %.2fzł\nWszystkie wypracoawne odsetki: %.2fzł\nKara zapłacona za "
+    printf("\nStatystyki:\nIle zainwestowano: %.2fzł\nWszystkie wypracowane odsetki: %.2fzł\nKara zapłacona za "
            "przedwczesny wykup: %.2fzł\n",
            portfel.statystyki.ileZainwestowane, portfel.statystyki.totalOdsetki, portfel.statystyki.totalKara);
     // printf("Zapłacony podatek: %.2fzł\nIlość obligacji, które nie przyniosły zysku: %d      Ilość Obligacji które "
