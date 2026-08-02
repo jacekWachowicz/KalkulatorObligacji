@@ -83,7 +83,7 @@ static int isTimeToPay(const Pozycja* pozycja, const int currentMonth)
     return 0;
 }
 
-double obliczZyskNetto(double zyskBruttoTotal, int iloscObligacji, float karaTotal)
+double obliczZyskNetto(Statistics* statystyki, double zyskBruttoTotal, int iloscObligacji, float karaTotal)
 {
     double zyskBruttoSztuka = zyskBruttoTotal / iloscObligacji;
     double karaSztuka = karaTotal / iloscObligacji;
@@ -94,6 +94,12 @@ double obliczZyskNetto(double zyskBruttoTotal, int iloscObligacji, float karaTot
         podatekSztuka = round(podstawaSztuka * 0.19 * 100.0) / 100.0;
 
     double zyskNettoSztuka = podstawaSztuka - podatekSztuka;
+
+    statystyki->totalKara += karaTotal;
+    statystyki->totalPodatek += podatekSztuka * iloscObligacji;
+    if (zyskNettoSztuka <= 0)
+        statystyki->ileNieDaloZysku += iloscObligacji;
+
     return zyskNettoSztuka * iloscObligacji;
 }
 
@@ -103,8 +109,9 @@ static void wykupStandardowo(Portfel* portfel, const int numerPozycji, const Par
 
     double zyskBruttoTotal = pozycja->wartoscBrutto - (pozycja->amount * BAZA);
 
-    double zyskNetto = obliczZyskNetto(zyskBruttoTotal, pozycja->amount, 0.0);
+    double zyskNetto = obliczZyskNetto(&portfel->statystyki, zyskBruttoTotal, pozycja->amount, 0.0);
 
+    portfel->statystyki.ileZakonczyloCykl += pozycja->amount;
     portfel->konto += zyskNetto + pozycja->amount * BAZA;
 }
 
@@ -124,7 +131,7 @@ static void wykupPrzedterminowo(Portfel* portfel, const int numerPozycji, const 
 
     kara = pozycja->typ.obliczKare(&(pozycja->typ), zyskBrutto, pozycja->amount, elapsedMonths);
 
-    zyskNetto = obliczZyskNetto(zyskBrutto, pozycja->amount, kara);
+    zyskNetto = obliczZyskNetto(&portfel->statystyki, zyskBrutto, pozycja->amount, kara);
 
     if (parameters.verbose)
         printf("Kara za wykup: %.2fzł\ncałkowity zysk netto: %.2fzł\n\n", kara, zyskNetto);
@@ -182,6 +189,7 @@ static void aktualizujOdsetki(Portfel* portfel, const int numerPozycji, const in
 
     if (isEndOfBondLifecycle(aktualizowanaPozycja, currentMonth))
     {
+        portfel->statystyki.ileZakonczyloCykl += aktualizowanaPozycja->amount;
         reinvest(portfel, numerPozycji, currentMonth, parameteres);
     }
 
@@ -195,6 +203,7 @@ static void aktualizujOdsetki(Portfel* portfel, const int numerPozycji, const in
     }
 
     aktualizowanaPozycja->wartoscBrutto += aktualizowanaPozycja->miesiecznyPrzychodBrutto;
+    portfel->statystyki.totalOdsetki += aktualizowanaPozycja->miesiecznyPrzychodBrutto;
 
     if (parameteres.verbose)
         printf("obligacja %d: %.2fzł\n", numerPozycji, aktualizowanaPozycja->wartoscBrutto);
@@ -202,7 +211,7 @@ static void aktualizujOdsetki(Portfel* portfel, const int numerPozycji, const in
     if (isTimeToPay(aktualizowanaPozycja, currentMonth))
     { // dla obligacji ROR,COI itp, które wypłacają odsetki
         double zyskBrutto = aktualizowanaPozycja->wartoscBrutto - (aktualizowanaPozycja->amount * BAZA);
-        double zyskNetto = obliczZyskNetto(zyskBrutto, aktualizowanaPozycja->amount, 0.0);
+        double zyskNetto = obliczZyskNetto(&portfel->statystyki, zyskBrutto, aktualizowanaPozycja->amount, 0.0);
         aktualizowanaPozycja->wartoscBrutto -= zyskBrutto;
         portfel->konto += zyskNetto;
         if (parameteres.verbose)
@@ -235,7 +244,7 @@ void calculate(Portfel* portfel, const Parameters parameters)
         if (isTimeToBuy(currentMonth, parameters))
         {
             portfel->konto += parameters.buyingAmt;
-            portfel->ileZainwestowane += parameters.buyingAmt;
+            portfel->statystyki.ileZainwestowane += parameters.buyingAmt;
             kupObligacje(portfel, parameters.buyingAmt / BAZA, parameters.typ, currentMonth);
         } // obligacje kupowane na początku miesiąca
 

@@ -18,10 +18,11 @@ typedef struct Parameters
     typObligacji typ;
 } Parameters;
 
-typedef struct Results
+typedef struct Statistics
 {
-    double brutto, netto, kara, wszystkieOdsetki;
-} Results;
+    double totalOdsetki,totalKara,totalPodatek,ileZainwestowane;
+    int ileNieDaloZysku,ileZakonczyloCykl;
+} Statistics;
 
 typedef struct Pozycja
 {
@@ -34,6 +35,7 @@ typedef struct Portfel
 {
     Pozycja *pozycje;
     int liczbaPozycji;
-    double konto,ileZainwestowane;
+    double konto;
+    Statistics statystyki;
 } Portfel;
 #endif

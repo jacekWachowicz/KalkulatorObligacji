@@ -40,26 +40,32 @@ void getParameters(Parameters* parameters, Portfel* portfel, const typObligacji*
     printf("Ile chcesz zainwestować? (zł)\n");
     scanf("%d", &kapital1);
     portfel->konto = (double)kapital1;
-    portfel->ileZainwestowane=kapital1;
+    portfel->statystyki.ileZainwestowane=kapital1;
     parameters->ileObligacji = kapital1 / 100;
 
     printf("Czy chcesz regularnie dokupować obligacje? (y/n)\n");
     scanf(" %c", &choice);
     if (choice == 'y')
     {
-        printf("Jak dużo chcesz wpłacać?\n");
+        printf("Jak dużo chcesz wpłacać? (zł)\n");
         scanf("%d", &parameters->buyingAmt);
         printf("co ile miesięcy?\n");
         scanf("%d", &parameters->buyingFreq);
     }
-    if ((parameters->msc <= 36 && (1 + (parameters->msc / parameters->buyingFreq)) <= 5) || (parameters->buyingFreq==0 && parameters->msc<=10*12))
-        parameters->verbose = 1;
-    else
+    // if ((parameters->msc <= 36 && (1 + (parameters->msc / parameters->buyingFreq)) <= 5) || (parameters->buyingFreq==0 && parameters->msc<=10*12))
+    //     parameters->verbose = 1;
+    // else
         parameters->verbose = 0;
 }
 
 int main(){
-    Portfel portfel={.konto=0.0,.liczbaPozycji=0};
+    Statistics statystyki = {.totalOdsetki = 0.0,
+                             .totalKara = 0.0,
+                             .totalPodatek = 0.0,
+                             .ileZainwestowane = 0.0,
+                             .ileNieDaloZysku = 0,
+                             .ileZakonczyloCykl = 0};
+    Portfel portfel={.konto=0.0,.liczbaPozycji=0, .statystyki=statystyki};
 
     const typObligacji types[] = {{.nazwa = "OTS", .kara = 99.0, .czas = 3,   .prc = 2.0,  .okresWyplaty = 0, .kosztZamiany=100.0, .obliczKare = obliczKareKapitalizujaco},
                                   {.nazwa = "ROR", .kara = 0.5,  .czas = 12,  .prc = 4.0,  .okresWyplaty = 1, .kosztZamiany=99.9,  .obliczKare = obliczKareWyplacajaco},
@@ -85,7 +91,15 @@ int main(){
 
     calculate(&portfel, parameters);
 
-    printf("\nIle zainwestowano: %.2fzł\nZysk: %.2fzł\nCałość: %.2fzł\n",portfel.ileZainwestowane,portfel.konto-portfel.ileZainwestowane, portfel.konto);
+    printf("\nStatystyki:\nIle zainwestowano: %.2fzł\nWszystkie wypracoawne odsetki: %.2fzł\nKara zapłacona za "
+           "przedwczesny wykup: %.2fzł\n",
+           portfel.statystyki.ileZainwestowane, portfel.statystyki.totalOdsetki, portfel.statystyki.totalKara);
+    // printf("Zapłacony podatek: %.2fzł\nIlość obligacji, które nie przyniosły zysku: %d      Ilość Obligacji które "
+           // "zakończyło swój cykl: %d\n",
+           // portfel.statystyki.totalPodatek, portfel.statystyki.ileNieDaloZysku, portfel.statystyki.ileZakonczyloCykl);
+
+    printf("Zysk netto: %.2fzł\n",portfel.konto-portfel.statystyki.ileZainwestowane);
+    printf("\nCałość: %.2fzł\n", portfel.konto);
     free(portfel.pozycje);
     return 0;
 }
