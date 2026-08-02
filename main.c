@@ -1,79 +1,106 @@
+#include "data_types.h"
+#include "calc.h"
+#include "helpers.h"
 #include <ctype.h>
 #include <stdio.h>
-#include "data_types.h"
-#include "helpers.h"
-#include "calc.h"
 #include <stdlib.h>
 
 
-double analiza(Parameters parameters){
-    printf("\n===Obligacje %s===\n\nOprocentowanie: %.2f%%\nCzas oszczędzania: %d miesięcy\nIlość obligacji: %d\n"
-            ,parameters.typ.nazwa, parameters.typ.prc, parameters.msc, parameters.ileObligacji);
+void getParameters(Parameters* parameters, Portfel* portfel, const typObligacji* types, int n)
+{
 
-    Results result=obliczZysk(parameters.msc, parameters.typ, parameters.verbose);
+    char choice = 'n';
+    char buff[11];
+    int typ = 1;
+    int kapital1;
 
-    printf("\n\n========Analiza pojedynczej obligacji=========\n");
-    printf("Wszystkie wytworzone odsetki: %.3fzł\nKara za wcześniejszy wykup: %.3fzł\nZysk brutto: %.3fzł\nZapłacony podatek: %.3fzł\nZysk netto: %.3fzł\n",
-            result.wszystkieOdsetki, result.kara, result.brutto, result.brutto-result.netto, result.netto);
-
-    if(parameters.ileObligacji!=1){
-    printf("\n========Analiza całości=========\n");
-    printf("Wszystkie wytworzone odsetki: %.2fzł\nKara za wcześniejszy wykup: %.2fzł\nZysk brutto: %.2fzł\nZapłacony podatek: %.2fzł\nZysk netto: %.2fzł\n",
-            result.wszystkieOdsetki*parameters.ileObligacji, result.kara*parameters.ileObligacji, result.brutto*parameters.ileObligacji,parameters.ileObligacji*(result.brutto-result.netto), result.netto*parameters.ileObligacji);
+    printf("Jaki typ obligacji?\n");
+    for (int i = 0; i < n; i++)
+    {
+        printf("\n%d. %s - ", i + 1, types[i].nazwa);
+        if (types[i].czas < 12)
+            printf("%d miesięce\n", types[i].czas);
+        else
+            printf("%d lata\n", types[i].czas / 12);
+        printf("    Oprocentowanie: %.2f%%\n", types[i].prc);
+        printf("    Kara za wcześniejszy wykup: %.2fzł\n", types[i].kara);
     }
-    return result.netto*parameters.ileObligacji;
+    scanf("%d", &typ);
+    if (typ < 1 || typ > n)
+    {
+        printf("Niepoprawny typ\n");
+        exit(1);
+    }
+
+    parameters->typ = types[typ - 1];
+    printf("Po jakim czasie chcesz wyjąć pieniądze?\n(np. 12m - 12 miesięcy, 10l - 10 lat)\n");
+    scanf("%10s", buff);
+    parameters->msc = parseTime(buff);
+
+    printf("Ile chcesz zainwestować? (zł)\n");
+    scanf("%d", &kapital1);
+    portfel->konto = (double)kapital1;
+    portfel->statystyki.ileZainwestowane=kapital1;
+    parameters->ileObligacji = kapital1 / 100;
+
+    printf("Czy chcesz regularnie dokupować obligacje? (y/n)\n");
+    scanf(" %c", &choice);
+    if (choice == 'y')
+    {
+        printf("Jak dużo chcesz wpłacać? (zł)\n");
+        scanf("%d", &parameters->buyingAmt);
+        printf("co ile miesięcy?\n");
+        scanf("%d", &parameters->buyingFreq);
+    }
+    // if ((parameters->msc <= 36 && (1 + (parameters->msc / parameters->buyingFreq)) <= 5) || (parameters->buyingFreq==0 && parameters->msc<=10*12))
+    //     parameters->verbose = 1;
+    // else
+        parameters->verbose = 0;
 }
 
 int main(){
-    char choice='n';
-    char buff[10];
-    int typ=1, kapital1=0;
-    double zysk;
-    const typObligacji types[] = {
-        { .nazwa = "OTS", .kara = 99.0, .czas = 3,     .prc = 2.0,  .okresWyplaty = 0 },
-        { .nazwa = "ROR", .kara = 0.5,  .czas = 12,    .prc = 4.0,  .okresWyplaty = 1 },
-        { .nazwa = "DOR", .kara = 0.7,  .czas = 24,    .prc = 4.15, .okresWyplaty = 1 },
-        { .nazwa = "TOS", .kara = 1.0,  .czas = 36,    .prc = 4.4,  .okresWyplaty = 0 },
-        { .nazwa = "COI", .kara = 2.0,  .czas = 48,    .prc = 4.75, .okresWyplaty = 12 },
-        { .nazwa = "EDO", .kara = 2.0,  .czas = 120,   .prc = 5.35, .okresWyplaty = 0 }
-    };
+    Statistics statystyki = {.totalOdsetki = 0.0,
+                             .totalKara = 0.0,
+                             .totalPodatek = 0.0,
+                             .ileZainwestowane = 0.0,
+                             .ileNieDaloZysku = 0,
+                             .ileZakonczyloCykl = 0};
+    Portfel portfel={.konto=0.0,.liczbaPozycji=0, .statystyki=statystyki};
 
-    const int n=sizeof(types)/sizeof(types[0]);
+    const typObligacji types[] = {{.nazwa = "OTS", .kara = 99.0, .czas = 3,   .prc = 2.0,  .okresWyplaty = 0, .kosztZamiany=100.0, .obliczKare = obliczKareKapitalizujaco},
+                                  {.nazwa = "ROR", .kara = 0.5,  .czas = 12,  .prc = 4.0,  .okresWyplaty = 1, .kosztZamiany=99.9,  .obliczKare = obliczKareWyplacajaco},
+                                  {.nazwa = "DOR", .kara = 0.7,  .czas = 24,  .prc = 4.15, .okresWyplaty = 1, .kosztZamiany=99.9,  .obliczKare = obliczKareWyplacajaco},
+                                  {.nazwa = "TOS", .kara = 1.0,  .czas = 36,  .prc = 4.4,  .okresWyplaty = 0, .kosztZamiany=99.9,  .obliczKare = obliczKareKapitalizujaco},
+                                  {.nazwa = "COI", .kara = 2.0,  .czas = 48,  .prc = 4.75, .okresWyplaty = 12,.kosztZamiany=99.9,  .obliczKare = obliczKareWyplacajaco},
+                                  {.nazwa = "EDO", .kara = 2.0,  .czas = 120, .prc = 5.35, .okresWyplaty = 0, .kosztZamiany=99.9,  .obliczKare = obliczKareKapitalizujaco}};
 
-    Parameters parameters;
+    const int n = sizeof(types) / sizeof(types[0]);
 
-    printf("Wyświetlać szczegóły?(y/n): ");
-    scanf("%c",&choice);
-    if(choice=='y')parameters.verbose=1;
-    else parameters.verbose=0; 
+    Parameters parameters = {.buyingAmt = 0.0, .buyingFreq = 0};
 
-    printf("Jaki typ obligacji?\n");
-    for(int i=0; i<n; i++)
+    getParameters(&parameters,&portfel,types,  n);
+
+    int liczbaPozycji = 1;
+    if (parameters.buyingFreq > 0)
     {
-        printf("\n%d. %s - ",i+1,types[i].nazwa);
-        if(types[i].czas<12) printf("%d miesięce\n",types[i].czas);
-        else printf("%d lata\n",types[i].czas/12);
-        printf("    Oprocentowanie: %.2f\n",types[i].prc);
-
+        liczbaPozycji = 1 + (parameters.msc / parameters.buyingFreq);
     }
-    scanf("%d",&typ);
-    if(typ<1 || typ >n){
-        printf("Niepoprawny typ\n");
-        return 1;
-    }
+    portfel.pozycje = malloc(liczbaPozycji * sizeof(Pozycja));
 
-    parameters.typ=types[typ-1];
-    printf("Po jakim czasie chcesz wyjąć pieniądze?\n(np. 12m - 12 miesięcy, 10l - 10 lat)\n");
-    scanf("%s",buff);
-    parameters.msc=parseTime(buff);
+    kupObligacje(&portfel, parameters.ileObligacji, parameters.typ, 1);
 
-    printf("Ile chcesz zainwestować? (zł)\n");
-    scanf("%d",&kapital1);
-    parameters.ileObligacji=kapital1/100;
+    calculate(&portfel, parameters);
 
-    zysk=analiza(parameters);
+    printf("\nStatystyki:\nIle zainwestowano: %.2fzł\nWszystkie wypracowane odsetki: %.2fzł\nKara zapłacona za "
+           "przedwczesny wykup: %.2fzł\n",
+           portfel.statystyki.ileZainwestowane, portfel.statystyki.totalOdsetki, portfel.statystyki.totalKara);
+    // printf("Zapłacony podatek: %.2fzł\nIlość obligacji, które nie przyniosły zysku: %d      Ilość Obligacji które "
+           // "zakończyło swój cykl: %d\n",
+           // portfel.statystyki.totalPodatek, portfel.statystyki.ileNieDaloZysku, portfel.statystyki.ileZakonczyloCykl);
 
-    printf("\nSuma: %.2fzł\n",zysk+(double)kapital1);
+    printf("Zysk netto: %.2fzł\n",portfel.konto-portfel.statystyki.ileZainwestowane);
+    printf("\nCałość: %.2fzł\n", portfel.konto);
+    free(portfel.pozycje);
     return 0;
 }
 
